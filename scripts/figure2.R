@@ -472,7 +472,6 @@ dir.create(results_path, showWarnings = FALSE, recursive = TRUE)
 sig_fisher_df <- cmbd_p_vals_all_completed_data %>%
     filter(cmbd_fisher_p_val < p_cutoff | owner == "Kruse")
 
-
 naming_tribble <- tribble(
     ~data, ~gvar, ~title, ~path,
     list(sig_fisher_df), "Accession", "Waterfall plot of significant analytes by Fisher p-value", "All_data-accession_fc_waterfall.png",
