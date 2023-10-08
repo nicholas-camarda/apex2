@@ -350,7 +350,7 @@ combined_dat_full_no_extreme_outliers <- combined_dat %>%
     filter(!(row_number %in% extreme_outliers_all$row_number))
 message(qq("Final Dataset size without EXTREME outliers: @{nrow(combined_dat_full_no_extreme_outliers)}"))
 
-fn <- file.path("results", "plots", "data_stats", "combined_dat_full_no_extreme_outliers_hist.png")
+fn <- file.path("results", "plots", "data_stats", "FINAL_DATA_combined_dat_full_no_extreme_outliers_hist.png")
 png(fn, width = 1920, height = 1920, res = 300)
 hist(combined_dat_full_no_extreme_outliers$log2_fc, main = "Combined Data (no EXTREME outliers)", xlab = "Log2 Fold Change")
 dev.off()
