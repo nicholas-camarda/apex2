@@ -191,6 +191,39 @@ make_figure2_plots(
 )
 
 
+# Raja only
+raja_result_path <- file.path("results", "plots", "Figure 2", "Strict Thresholds for Fig 2 (q0_1 and FC2)", "2B-E", "Rajagopal Only")
+waterfall_plot_easy_lst <- easy_plot_fc(
+    dat1 = my_combined_dat %>% filter(owner == "Rajagopal"),
+    fc_cutoff = 2,
+    q_val_cutoff = 0.1,
+    title_ = "Rajagopal only"
+)
+ggsave(
+    filename = file.path(raja_result_path, "Rajagopal_waterfall.png"),
+    plot = waterfall_plot_easy_lst[[1]],
+    width = 20,
+    height = 12
+)
+openxlsx::write.xlsx(waterfall_plot_easy_lst[[2]] %>% dplyr::select(-owners, -n_owners), file = file.path(raja_result_path, "raja_only_waterfall.xlsx"))
+
+
+volcano_plot_easy_lst <- easy_plot_volcano(
+    df = my_combined_dat %>% filter(owner == "Rajagopal"),
+    fc_thresh = 2,
+    q_val_cutoff = 0.1,
+    title_ = "Rajagopal only"
+)
+ggsave(
+    filename = file.path(raja_result_path, "Rajagopal_volcano.png"),
+    plot = volcano_plot_easy_lst[[1]],
+    width = 20,
+    height = 12
+)
+openxlsx::write.xlsx(volcano_plot_easy_lst[[2]] %>% dplyr::select(-owners, -n_owners), file = file.path(raja_result_path, "raja_only_volcano-all.xlsx"))
+
+
+
 # DEBUG:
 # set_and_print_variables <- function() {
 #     verbose <<- my_verbosity

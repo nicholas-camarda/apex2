@@ -76,7 +76,7 @@ generate_my_mapped_proteins <- function(my_dat, string_db) {
         # filter(gene_symbol %in% vector_genes) %>% # no need to match to vector genes because Stringdb has it's own database that will do the mapping
         distinct(owner, gene_symbol, adjusted_cmbd_fisher_p_val, log2_fc) %>%
         mutate(og_gene_symbol = gene_symbol) %>%
-        # need to do this so that we can identify a gene using all the variants of that gene available to us
+        # need to do this so that we can identify a gene using all the variants of that gene name available to us
         separate_longer_delim(col = gene_symbol, delim = "_")
 
     string_db_plus_our_dat <- gene_mapping %>%

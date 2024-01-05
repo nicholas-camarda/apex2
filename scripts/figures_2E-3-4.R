@@ -1,5 +1,5 @@
 rm(list = ls())
-library(ReactomePA)
+# library(ReactomePA)
 library(STRINGdb)
 library(org.Hs.eg.db)
 library(clusterProfiler)
@@ -306,7 +306,7 @@ do_stringdb_analysis <- function(data, func_base_results_path = "~/Downloads", s
     ### STRINGdb$help("add_diff_exp_color")
 
     my_mapped_proteins_sig <- string_db$add_diff_exp_color(
-        significant_mapped_proteins_df, ## we can afford to color these slightly differently than the strong thresholds
+        significant_mapped_proteins_df,
         logFcColStr = "median_logFC"
     )
     p()
@@ -319,6 +319,8 @@ do_stringdb_analysis <- function(data, func_base_results_path = "~/Downloads", s
         # Get the interactions
         message("Gathering interactions")
         #     STRINGdb$help("get_interactions")
+
+        # sort interactions by combined_score to later pluck 1:x top interactions
         x_interactions_df <- string_db$get_interactions(string_ids = x_mapped_df$STRING_id) %>%
             arrange(desc(as.numeric(combined_score))) %>%
             distinct()
@@ -333,6 +335,7 @@ do_stringdb_analysis <- function(data, func_base_results_path = "~/Downloads", s
             filter(STRING_id %in% x_interactions) %>%
             .$gene %>%
             unique()
+        print(head(x_interactions_df))
 
         # discrepancy sometimes between mapped df and the proteins for which interactions have been found
         no_interactions <- x_mapped_df %>%
@@ -480,6 +483,7 @@ all_data <- read_rds(file.path("cache", "FINAL-cache-including_kruse.rds"))
 conserved_data <- all_data %>% filter(n_owners == 4)
 
 
+# STRICT
 # make figure 3
 my_vector_genes_lst <- make_figure3(
     data = conserved_data,
@@ -500,6 +504,7 @@ with_progress(do_stringdb_analysis(
 
 
 # make figure 3
+# relaxed
 my_vector_genes_lst <- make_figure3(
     data = conserved_data,
     func_base_results_path = file.path("results", "plots", "Figures 3 and 4", qq("Relaxed Thresholds for Fig 3 and 4 (q0_2 and FC1_33)")),

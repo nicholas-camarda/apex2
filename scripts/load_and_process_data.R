@@ -52,7 +52,7 @@ extract_gn_from_description_raja <- Vectorize(function(string) {
     }
 })
 
-rajagopal_cxcl2 <- fns_tbl %>%
+rajagopal_cxcl12 <- fns_tbl %>%
     filter(owner == "Rajagopal") %>%
     dplyr::select(owner, data) %>%
     unnest(data) %>%
@@ -69,17 +69,20 @@ rajagopal_cxcl2 <- fns_tbl %>%
     rename(log2_fc = CXCL12_v_Veh_FC, p_val = CXCL12_v_Veh_pval) %>%
     mutate(
         adjusted_p_val = p.adjust(p_val, method = "fdr"),
+        # adjusted_p_val = p_val,
         reg_fc = 2^log2_fc
     ) %>%
     dplyr::select(-Description) %>%
     dplyr::select(owner, Accession, gene_symbol, everything())
 
-head(rajagopal_cxcl2)
+# interestingly there are no analytes with a fold change less than 2
+# rajagopal_cxcl12 %>% filter(abs(log2_fc) <= 1.001)
 
+head(rajagopal_cxcl12)
 
 fn <- file.path("results", "plots", "data_stats", "Rajagopal_3min_data_hist.png")
 png(fn, width = 1920, height = 1920, res = 300)
-hist(rajagopal_cxcl2$log2_fc, main = "Rajagopal (3min)", xlab = "Log2 Fold Change")
+hist(rajagopal_cxcl12$log2_fc, main = "Rajagopal (3min)", xlab = "Log2 Fold Change")
 dev.off()
 
 find_na <- function(data, column = "log2_fc") {
@@ -95,7 +98,7 @@ find_na <- function(data, column = "log2_fc") {
     return(data %>% mutate(row_number = row_number(), .before = 1) %>% slice(idx))
 }
 
-find_na(rajagopal_cxcl2, column = "log2_fc")
+find_na(rajagopal_cxcl12, column = "log2_fc")
 
 ## ----kruse-------------------------------------------------------------------------------------------------------------------
 # kruse
@@ -255,7 +258,7 @@ helper_accessions2 <- zastro_1min_3min_10min %>%
     distinct(Accession, gene_symbol, owner) %>%
     arrange(gene_symbol)
 
-helper_accessions3 <- rajagopal_cxcl2 %>%
+helper_accessions3 <- rajagopal_cxcl12 %>%
     distinct(Accession, gene_symbol, owner) %>%
     arrange(gene_symbol)
 
@@ -277,7 +280,7 @@ my_gene_map <- bind_rows(my_gene_map_temp, helper_accessions, helper_accessions2
 # my_gene_map %>% filter(gene_symbol == "AP3D1")
 # Full data
 combined_dat_full <- bind_rows(
-    rajagopal_cxcl2,
+    rajagopal_cxcl12,
     kruse_ang2_2min_21min,
     rockman_10m_90s,
     zastro_1min_3min_10min

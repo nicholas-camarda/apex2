@@ -200,7 +200,7 @@ plot_fc <- function(df, grouping_variable = "Accession", fc_cutoff = 2, stat_cut
             width = 0.1, size = rel(2),
             inherit.aes = FALSE
         ) +
-        theme_prism(base_size = 16) +
+        theme_prism(base_size = 20) +
         theme(
             strip.text.x = element_text(size = rel(1.25), face = "bold"),
             axis.text.x = element_text(size = rel(0.7), angle = 90, hjust = 1), # , angle = 45, hjust = 1, vjust = 1),
@@ -220,7 +220,6 @@ plot_fc <- function(df, grouping_variable = "Accession", fc_cutoff = 2, stat_cut
 
     return(list(wf_plot_with_kruse, num_analytes))
 }
-
 
 #' @note make volcano plots
 plot_volcano <- function(df, stat_cutoff_val = 0.001, label_variable = "Accession", my_stat_value_type = "q_value", fc_thresh = 2, found_in_title = "num_ds >= 2", title_ = "Volcano plot") {
@@ -289,7 +288,7 @@ plot_volcano <- function(df, stat_cutoff_val = 0.001, label_variable = "Accessio
         geom_label_repel(label_df,
             mapping = aes(label = !!label_var_sym), force = 10, max.overlaps = 20, min.segment.length = 0, show.legend = FALSE
         ) +
-        theme_prism(base_size = 16) +
+        theme_prism(base_size = 20) +
         theme(
             strip.text.x = element_text(size = rel(1.25), face = "bold"),
             axis.text = element_text(size = rel(0.8)), # , angle = 45, hjust = 1, vjust = 1),
@@ -297,11 +296,10 @@ plot_volcano <- function(df, stat_cutoff_val = 0.001, label_variable = "Accessio
             panel.grid.minor = element_line(colour = "gray", linetype = 2, linewidth = 0.25)
         ) +
         ggtitle(qq("@{title_}")) +
-        labs(caption = qq("@{my_stat_value_type} cuttoff: @{stat_cutoff_val}\n abs(raw median(FC)) > @{fc_cutoff}\nFound in @{helper_found_in_title_caption} dataset(s)\nN = @{num_analytes}"))
+        labs(caption = qq("@{my_stat_value_type} cuttoff: @{stat_cutoff_val}\n abs(raw median(FC)) > @{fc_thresh}\nFound in @{helper_found_in_title_caption} dataset(s)\nN = @{num_analytes}"))
     volcano_plot
     return(list(volcano_plot, num_analytes))
 }
-
 
 add_string_to_filename <- function(filename, string_to_add) {
     # Usage example:
@@ -348,4 +346,159 @@ make_stat_directory <- function(sval, type = "q") {
     dir_name <- paste0(type, sval_str)
 
     return(dir_name)
+}
+
+
+
+#' @note less restrictions for easy plotting of waterfall plot
+easy_plot_fc <- function(dat1, q_val_cutoff = 0.1, fc_cutoff = 2, title_ = "") {
+    ds <- dat1 %>%
+        group_by(gene_symbol) %>%
+        left_join(dat1 %>% count_owners()) %>%
+        reframe(
+            # mean_log2_fc = mean(log2_fc, na.rm = TRUE),
+            median_log2_fc = median(log2_fc, na.rm = TRUE),
+            log2_fc = list(log2_fc),
+            use_neg_log10_stat_val = -log10(adjusted_p_val),
+            significant_stat_val = ifelse(!is.na(adjusted_p_val), adjusted_p_val < q_val_cutoff, FALSE),
+            significant = unique(significant_stat_val),
+            n_owners = unique(n_owners),
+            owners = unique(owners)
+        ) %>%
+        ## threshold on MEAN FC also
+        filter(abs(median_log2_fc) > log2(fc_cutoff) & significant) %>%
+        arrange(gene_symbol) %>%
+        # these two arrange calls HAVE to be separate
+        arrange(desc(median_log2_fc)) %>%
+        mutate(order = row_number()) %>%
+        mutate(
+            gene_symbol = factor(gene_symbol, levels = gene_symbol[order]),
+            up_down = factor(ifelse(median_log2_fc > 0, "++", "--"),
+                levels = c("++", "--")
+            )
+        )
+    owners_labeller_df <- dat1 %>%
+        left_join(
+            ds %>%
+                dplyr::select(gene_symbol, median_log2_fc, order, up_down, significant),
+            by = join_by(gene_symbol)
+        ) %>%
+        ## threshold on FC also
+        filter(abs(median_log2_fc) > log2(fc_cutoff) & significant) %>%
+        dplyr::select(gene_symbol, owner, log2_fc, median_log2_fc, order, up_down) %>%
+        arrange(order)
+
+    num_analytes <- nrow(ds)
+
+    ds_final <- ds %>% unnest(log2_fc)
+
+    wf_plot <- ggplot(ds_final,
+        mapping = aes(
+            x = gene_symbol, y = log2_fc,
+            color = up_down, group = gene_symbol
+        )
+    ) +
+        geom_hline(yintercept = 0, color = "orange") +
+        geom_hline(yintercept = c(-log2(fc_cutoff), log2(fc_cutoff)), color = "#9700e8", alpha = 0.6, linewidth = 1.1, linetype = 4) +
+        # boxplot first
+        geom_boxplot() +
+        # then jitters
+        geom_point(owners_labeller_df,
+            mapping = aes(x = gene_symbol, y = log2_fc, shape = owner, fill = up_down),
+            color = "black",
+            size = rel(4),
+            inherit.aes = FALSE
+        ) +
+        theme_prism(base_size = 20) +
+        theme(
+            strip.text.x = element_text(size = rel(1.25), face = "bold"),
+            axis.text.x = element_text(size = rel(0.7), angle = 90, hjust = 1), # , angle = 45, hjust = 1, vjust = 1),
+            axis.text.y = element_text(size = rel(0.9)),
+            panel.grid.major = element_line(colour = "gray", linetype = 3, linewidth = 0.5),
+            panel.grid.minor = element_line(colour = "gray", linetype = 2, linewidth = 0.25)
+        ) +
+        scale_fill_manual(values = c("#474747", "red")) +
+        scale_color_manual(values = c("#474747", "red")) +
+        scale_shape_manual(values = c("Rajagopal" = 21, "Kruse" = 22, "Von Zastrow" = 23, "Rockman" = 24)) +
+        ggtitle(qq("@{title_}")) +
+        labs(caption = qq("q value cuttoff: @{q_val_cutoff}\n abs(raw median(FC)) > @{fc_cutoff}\nN = @{num_analytes}")) +
+        ylab(TeX("$\\bf{log_2(FC)}$")) +
+        labs(x = "Gene Symbol")
+
+    return(list(wf_plot, ds_final %>% dplyr::select(-median_log2_fc, -significant_stat_val) %>% rename(neg_log10_q_val = use_neg_log10_stat_val)))
+}
+
+#' @note easy volcano
+easy_plot_volcano <- function(df, fc_thresh, q_val_cutoff, title_) {
+    counted_owners_df <- count_owners(df)
+
+    my_ylab <- TeX("$\\bf{-log_{10}(Q)}$")
+
+    plot_df_temp <- df %>%
+        group_by(gene_symbol) %>%
+        mutate(
+            # mean_log2_fc = mean(log2_fc, na.rm = TRUE),
+            use_neg_log10_stat_val = -log10(adjusted_p_val),
+            median_log2_fc = median(log2_fc, na.rm = TRUE),
+        ) %>%
+        mutate(significant = ifelse((abs(median_log2_fc) > log2(fc_thresh)) & (adjusted_p_val < q_val_cutoff), TRUE, FALSE)) %>%
+        left_join(counted_owners_df)
+    max_for_alpha <- max(sqrt(plot_df_temp$median_log2_fc^2 + plot_df_temp$use_neg_log10_stat_val^2))
+
+    plot_df <- plot_df_temp %>%
+        mutate(
+            res = sqrt(median_log2_fc^2 + use_neg_log10_stat_val^2),
+            significant_alpha = ifelse(significant,
+                (res / max_for_alpha)^1.5,
+                0
+            ), .before = 1 # 1, 0.01)
+        ) %>%
+        distinct(
+            gene_symbol, log2_fc,
+            use_neg_log10_stat_val,
+            significant, significant_alpha, n_owners, owners
+        )
+
+    label_df <- plot_df %>%
+        filter(significant)
+
+    num_analytes <- nrow(label_df %>% distinct(gene_symbol))
+    label_variable <- "Gene Symbol"
+
+    volcano_plot <- ggplot(plot_df, aes(
+        x = log2_fc,
+        y = use_neg_log10_stat_val,
+    ), color = "black") +
+        geom_hline(yintercept = -log10(q_val_cutoff), color = "orange") +
+        geom_vline(xintercept = c(-log2(fc_thresh), log2(fc_thresh)), color = "#370afc", alpha = 0.6, linewidth = 1.1, linetype = 4) +
+        geom_point(
+            mapping = aes(
+                fill = significant,
+                alpha = significant_alpha
+            ),
+            pch = 21,
+            show.legend = FALSE, size = 2.5
+        ) +
+        ylim(c(0, max(plot_df$use_neg_log10_stat_val, na.rm = TRUE) + 0.25)) +
+        xlab(TeX("$\\bf{log_2(FC)}$")) +
+        ylab(my_ylab) +
+        scale_fill_manual(values = c("black", "red")) +
+        geom_label_repel(label_df,
+            mapping = aes(label = gene_symbol),
+            force = 10, max.overlaps = 10,
+            min.segment.length = 0.2, show.legend = FALSE
+        ) +
+        theme_prism(base_size = 20) +
+        theme(
+            strip.text.x = element_text(size = rel(1.25), face = "bold"),
+            axis.text = element_text(size = rel(0.8)), # , angle = 45, hjust = 1, vjust = 1),
+            panel.grid.major = element_line(colour = "gray", linetype = 3, linewidth = 0.5),
+            panel.grid.minor = element_line(colour = "gray", linetype = 2, linewidth = 0.25)
+        ) +
+        ggtitle(qq("@{title_}")) +
+        labs(caption = qq("q value cuttoff: @{q_val_cutoff}\n abs(raw median(FC)) > @{fc_thresh}\nN = @{num_analytes}"))
+    return(list(volcano_plot, plot_df %>%
+        dplyr::select(-significant_alpha) %>%
+        arrange(desc(log2_fc), use_neg_log10_stat_val) %>%
+        rename(neg_log10_q_val = use_neg_log10_stat_val)))
 }
