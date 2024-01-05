@@ -43,7 +43,12 @@ The repository includes several custom R functions to aid in data analysis and v
 
 ## Installation and Usage
 
-To use these functions, clone this repository and source the functions in your R environment. Example usage for each function is provided within the function documentation.
+To use these functions, clone this repository and source the functions in your R environment. Example usage for each function is provided within the function documentation. The ~order~ of the analysis we used was:
+
+- `load_and_process_data.R`
+- `figure2B-D.R`
+- `figures_2E-3-4.R`
+- `table_1.R`
 
 ## Contributions and Feedback
 
