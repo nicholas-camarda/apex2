@@ -169,8 +169,22 @@ make_tbl_data <- function(dat, output_directory_path, my_str_name = "", x_i = NA
     write.xlsx(dat, data_fn)
 }
 
-#' @note generates plots of interactions
-#' @param interactions
+#' Generates and saves interaction network plots for a specified number of top interactions.
+#'
+#' This function visualizes the top interactions from a STRINGdb protein-protein interaction dataset.
+#' It generates network plots for different intervals of top interactions and saves them in the specified directory.
+#' Additional data, such as gene names associated with the interactions, are also processed and saved.
+#'
+#' @param gene_names A vector of gene names corresponding to the interactions.
+#' @param interactions A list or vector of interactions to be visualized.
+#' @param output_directory_path The directory path where the interaction network plots will be saved.
+#' @param string_db The STRINGdb object used for generating network visualizations.
+#' @param intervals A numeric vector specifying the intervals of top interactions to plot (default is c(25, 50, 100, 200, 300)).
+#' @return Saves network plots of top interactions at specified intervals in the given directory.
+#' @examples
+#' gene_names <- c("GENE1", "GENE2", "GENE3", ...)
+#' interactions <- get_interactions_from_stringdb()
+#' plot_stringdb_interactions(gene_names, interactions, "path/to/output", string_db)
 plot_stringdb_interactions <- function(gene_names, interactions, output_directory_path, string_db, intervals = c(25, 50, 100, 200, 300)) {
     walk(intervals, .f = function(i) {
         message(qq("Top @{i} interactions"))
@@ -202,7 +216,7 @@ plot_stringdb_interactions <- function(gene_names, interactions, output_director
 #' @param intervals Numeric vector specifying intervals for the top interactions to analyze (default is c(25, 50, 100, 200, 300)).
 #' @return Generates Excel files with enrichment analysis results in the specified directory.
 #' @examples
-#' interactions <- get_interactions_from_stringdb()
+#' interactions <- string_db$get_interactions(string_ids = STRING_id)
 #' generate_interaction_enrichment_tables(interactions, "path/to/output", string_db)
 generate_interaction_enrichment_tables <- function(interactions, output_directory_path, string_db, intervals = c(25, 50, 100, 200, 300)) {
     walk(intervals, .f = function(i) {
