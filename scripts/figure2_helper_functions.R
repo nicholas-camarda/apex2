@@ -456,7 +456,7 @@ add_string_to_filename_basic <- function(filename, string_to_add, file_ext = "pn
 #' @return A filename-friendly version of the input string.
 #' @examples
 #' friendly_name <- convert_to_filename_friendly("Example String")
-onvert_to_filename_friendly <- function(input_string) {
+convert_to_filename_friendly <- function(input_string) {
     # Usage example:
     # convert_to_filename_friendly("Include Kruse data")
     # Convert the string to lowercase
@@ -667,4 +667,160 @@ easy_plot_volcano <- function(df, fc_thresh, q_val_cutoff, title_) {
         dplyr::select(-significant_alpha) %>%
         arrange(desc(log2_fc), use_neg_log10_stat_val) %>%
         rename(neg_log10_q_val = use_neg_log10_stat_val)))
+}
+
+
+#' Generates waterfall and volcano plots for combined data (Figure 2 plots).
+#'
+#' This function creates waterfall and volcano plots based on combined data from multiple datasets.
+#' It involves generating combined p-values, creating significant data frames, and plotting.
+#'
+#' @param combined_dat The dataset containing combined information from multiple studies.
+#' @param results_path Path to save the generated plots.
+#' @param stat_value_type Type of statistical value ('p_value' or 'q_value') for significance testing.
+#' @param stat_cutoff Cutoff threshold for statistical significance.
+#' @param fc_cutoff Fold change cutoff for significance.
+#' @param verbose Boolean to control the display of detailed messages during processing.
+#' @return Saves waterfall and volcano plots to the specified results path.
+#' @examples
+#' combined_dat <- read.csv("path/to/combined_data.csv")
+#' make_figure2_plots(combined_dat, "path/to/results")
+make_figure2_plots <- function(combined_dat, results_path = "", stat_value_type = "q_value", stat_cutoff = 0.1, fc_cutoff = 2, verbose = FALSE) {
+    dir.create(results_path, showWarnings = FALSE, recursive = TRUE)
+    helper_fn_title <- basename(results_path)
+    helper_fn_name <- convert_to_filename_friendly(helper_fn_title)
+
+
+    max_datasets <- length(unique(combined_dat$owner))
+    message(qq("Working with @{max_datasets} datasets."))
+    cat(unique(combined_dat$owner), sep = " | ")
+    cat("\n")
+
+    message("Generating combined p-values and correcting for multiple hypotheses...")
+    cmbd_p_vals_all_completed_data <- generate_cmbd_fisher_pval_data(
+        data = combined_dat
+    )
+    message("Generating separate pvalues without Rajagopal contribution...")
+    cmbd_p_vals_all_completed_data_no_raja <- generate_cmbd_fisher_pval_data(
+        data = combined_dat %>% filter(owner != "Rajagopal")
+    )
+    message("Done!")
+
+    # for (stat_value_type in c("p_value", "q_value")) {
+    # results_path <- file.path(results_path, stat_value_type)
+    # results_path <- file.path(results_path)
+    # dir.create(results_path, showWarnings = FALSE, recursive = TRUE)
+
+    lst_res <- make_sig_dfs(
+        data1 = cmbd_p_vals_all_completed_data,
+        data2 = cmbd_p_vals_all_completed_data_no_raja,
+        my_stat_value_type = stat_value_type,
+        my_stat_cutoff = stat_cutoff
+    )
+    sig_fisher_df <- lst_res[[1]]
+    sig_fisher_no_raja_df <- lst_res[[2]]
+    stat_cutoff <- lst_res[[3]]
+
+    if (verbose) {
+        message("Sig DFs")
+        message("Full")
+        print(sig_fisher_df)
+        message("No Raj")
+        print(sig_fisher_no_raja_df)
+        message("Stat cutoff:")
+        print(stat_cutoff)
+    }
+
+
+    message(qq("Init waterfall `full` df size: @{dim(sig_fisher_df)[1]}, @{dim(sig_fisher_df)[2]}"))
+    message(qq("Init waterfall df NO RAJA size: @{dim(sig_fisher_no_raja_df)[1]}, @{dim(sig_fisher_no_raja_df)[2]}"))
+
+    waterfall_plot_name_lst <- make_naming_tribble_waterfall(
+        data = sig_fisher_df,
+        data2 = sig_fisher_no_raja_df,
+        my_stat_value_type = stat_value_type,
+        num_full_set = 2,
+        num_conserved = max_datasets,
+        helper_title = helper_fn_title
+    )
+
+
+    message("Generating water fall plots!")
+    wf_path <- file.path(results_path, "2CE. waterfall")
+    dir.create(wf_path, showWarnings = FALSE, recursive = TRUE)
+
+    for (i in seq_len(nrow(waterfall_plot_name_lst))) {
+        message(i)
+        if (verbose) print(waterfall_plot_name_lst[i, ])
+        waterfall_plot_lst_info <- plot_fc(
+            df = waterfall_plot_name_lst$data[[i]][[1]],
+            grouping_variable = waterfall_plot_name_lst$gvar[[i]],
+            fc_cutoff = fc_cutoff,
+            stat_cutoff_val = stat_cutoff,
+            my_stat_value_type = stat_value_type,
+            title_ = waterfall_plot_name_lst$title[[i]],
+            found_in_title = waterfall_plot_name_lst$found_in[[i]]
+        )
+        num_analytes_plt <- waterfall_plot_lst_info[[2]]
+
+        num_increments <- num_analytes_plt %/% 50
+        my_width <- 11 * (1 + 0.5 * num_increments)
+        my_height <- 8.5 * (1 + 0.15 * num_increments)
+
+        fn_name <- add_string_to_filename_basic(waterfall_plot_name_lst$path[[i]], string_to_add = helper_fn_name)
+        ggsave(
+            plot = waterfall_plot_lst_info[[1]],
+            filename = file.path(wf_path, fn_name),
+            width = my_width, height = my_height
+        )
+    }
+
+    volcano_plot_name_lst <- make_naming_tribble_volcano(
+        data1 = sig_fisher_df,
+        data2 = sig_fisher_no_raja_df,
+        my_stat_value_type = stat_value_type,
+        num_full_set = 2,
+        num_conserved = max_datasets,
+        helper_title = helper_fn_title
+    )
+
+    message("Generating volcano plots!")
+    volcano_path <- file.path(results_path, "2BD. volcano")
+    dir.create(volcano_path, showWarnings = FALSE, recursive = TRUE)
+    for (i in seq_len(nrow(volcano_plot_name_lst))) {
+        message(i)
+        if (verbose) print(volcano_plot_name_lst[i, ])
+        volcano_plot_lst_info <- plot_volcano(
+            df = volcano_plot_name_lst$data[[i]][[1]],
+            stat_cutoff_val = stat_cutoff,
+            my_stat_value_type = stat_value_type,
+            fc_thresh = fc_cutoff,
+            label_variable = volcano_plot_name_lst$gvar[[i]],
+            title_ = volcano_plot_name_lst$title[[i]],
+            found_in_title = volcano_plot_name_lst$found_in[[i]]
+        )
+
+        num_analytes_vplt <- volcano_plot_lst_info[[2]]
+
+        num_v_increments <- num_analytes_vplt %/% 50
+        my_v_width <- 10 * (1 + 0.15 * num_v_increments)
+        my_v_height <- 10 * (1 + 0.15 * num_v_increments)
+        fn_name <- add_string_to_filename_basic(volcano_plot_name_lst$path[[i]], string_to_add = helper_fn_name)
+
+        ggsave(
+            plot = volcano_plot_lst_info[[1]],
+            filename = file.path(volcano_path, fn_name),
+            width = my_v_width, height = my_v_height
+        )
+    }
+    message("All done!")
+    # }
+
+    message("Caching data for later...")
+    complete_cache_fn_name <- file.path("cache", add_string_to_filename_basic("FINAL-cache.rds", string_to_add = helper_fn_name, file_ext = "rds"))
+    no_raja_cache_fn_name <- file.path("cache", add_string_to_filename_basic("FINAL-cache_no_raja.rds", string_to_add = helper_fn_name, file_ext = "rds"))
+
+    write_rds(sig_fisher_df %>% mutate(stat_value_type, stat_value_cutoff = stat_cutoff), file = complete_cache_fn_name)
+    write_rds(sig_fisher_no_raja_df %>% mutate(stat_value_type, stat_value_cutoff = stat_cutoff), file = no_raja_cache_fn_name)
+    cat("\n\n")
 }

@@ -191,7 +191,19 @@ plot_stringdb_interactions <- function(gene_names, interactions, output_director
     })
 }
 
-#' @note perform enrichmetn analysis on the top interactions
+#' Performs enrichment analysis on top protein-protein interactions.
+#'
+#' This function carries out enrichment analysis on the top protein-protein interactions using STRINGdb.
+#' Results are saved as Excel files in the specified directory.
+#'
+#' @param interactions A list of protein-protein interactions.
+#' @param output_directory_path Directory path to save the enrichment analysis results.
+#' @param string_db STRINGdb object for enrichment analysis.
+#' @param intervals Numeric vector specifying intervals for the top interactions to analyze (default is c(25, 50, 100, 200, 300)).
+#' @return Generates Excel files with enrichment analysis results in the specified directory.
+#' @examples
+#' interactions <- get_interactions_from_stringdb()
+#' generate_interaction_enrichment_tables(interactions, "path/to/output", string_db)
 generate_interaction_enrichment_tables <- function(interactions, output_directory_path, string_db, intervals = c(25, 50, 100, 200, 300)) {
     walk(intervals, .f = function(i) {
         top_x_interactions <- interactions[1:i]
@@ -206,9 +218,19 @@ generate_interaction_enrichment_tables <- function(interactions, output_director
 }
 
 
-#' @Note from the significant FC and q-value hits plot the interaction network plot the top x
-#' @note this function generates its own intervals, separate from the above functions!
-#' @return list of top x hits dataframes
+#' Generates networks of interactions for significant hits based on q and FC values.
+#'
+#' This function creates networks of protein-protein interactions for the top hits based on their significance
+#' in fold change (FC) and q-values, using STRINGdb. It also saves the network plots.
+#'
+#' @param mapped_df A dataframe with mapped protein data including STRING IDs.
+#' @param output_directory_path The directory path for saving network plots.
+#' @param string_db The STRINGdb object for interaction analysis.
+#' @param intervals Intervals to define the top hits for network generation (default is c(25, 50, 100, 200, 300)).
+#' @return A list of dataframes for each interval with the top hits and their network plots.
+#' @examples
+#' mapped_df <- generate_my_mapped_proteins()
+#' generate_significant_hits_interaction_network(mapped_df, "path/to/output", string_db)
 generate_significant_hits_interaction_network <- function(mapped_df, output_directory_path, string_db, intervals = c(25, 50, 100, 200, 300)) {
     message("Generating networks of interactions for significant q and FC hits!")
 
@@ -237,7 +259,18 @@ generate_significant_hits_interaction_network <- function(mapped_df, output_dire
     return(my_lst_of_sig_hits)
 }
 
-#' @note perform enrichmemt analysis on the top significnat hits
+#' Generates enrichment tables for significant hits.
+#'
+#' This function creates enrichment tables for significant hits identified based on q and FC values.
+#' The enrichment analysis uses STRINGdb, and the results are saved in the specified directory.
+#'
+#' @param lst_of_sig_hits List of significant hits for enrichment analysis.
+#' @param output_directory_path Directory for saving the enrichment tables.
+#' @param string_db STRINGdb object used for the analysis.
+#' @return Saves Excel files with enrichment analysis results.
+#' @examples
+#' sig_hits <- generate_significant_hits_interaction_network()
+#' generate_signif_hits_enrichment_tables(sig_hits, "path/to/output", string_db)
 generate_signif_hits_enrichment_tables <- function(lst_of_sig_hits, output_directory_path, string_db) {
     message("Generating tables of enrichments for significant q and FC hits!")
     walk(seq_len(length(lst_of_sig_hits)), .f = function(i) {
@@ -253,7 +286,20 @@ generate_signif_hits_enrichment_tables <- function(lst_of_sig_hits, output_direc
 }
 
 
-
+#' Visualizes up-regulated/down-regulated pathway members for significant hits.
+#'
+#' This function generates visualizations to depict the regulated pathways of significant hits,
+#' using STRINGdb analysis. It highlights up-regulated and down-regulated pathway members.
+#'
+#' @param mapped_df A dataframe with mapped protein data, including STRING IDs and color coding for regulation.
+#' @param lst_of_sig_hits List of significant hits.
+#' @param output_directory_path Path to save the pathway visualization plots.
+#' @param string_db STRINGdb object for generating pathway visualizations.
+#' @return Generates and saves pathway visualization plots.
+#' @examples
+#' mapped_df <- generate_my_mapped_proteins()
+#' sig_hits <- generate_significant_hits_interaction_network()
+#' generate_pert_pathways(mapped_df, sig_hits, "path/to/output", string_db)
 generate_pert_pathways <- function(mapped_df, lst_of_sig_hits, output_directory_path, string_db) {
     # post payload information to the STRING server
     payload_id <- string_db$post_payload(mapped_df$STRING_id,
@@ -281,6 +327,18 @@ generate_pert_pathways <- function(mapped_df, lst_of_sig_hits, output_directory_
 }
 
 
+#' Visualizes top-scoring protein-protein interaction clusters.
+#'
+#' This function uses the STRINGdb package to visualize the top-scoring clusters in protein-protein interactions.
+#' It employs the FastGreedy algorithm for clustering and generates plots for each significant cluster.
+#'
+#' @param mapped_df A dataframe with STRING IDs for the proteins.
+#' @param output_directory_path The directory for saving the cluster plots.
+#' @param string_db The STRINGdb object used for interaction analysis.
+#' @return Saves cluster visualization plots in the specified directory.
+#' @examples
+#' mapped_df <- generate_my_mapped_proteins()
+#' plot_top_scoring_pp_interaction_clusters(mapped_df, "path/to/output", string_db)
 plot_top_scoring_pp_interaction_clusters <- function(mapped_df, output_directory_path, string_db) {
     # clusterings
     clustersList <- string_db$get_clusters(mapped_df$STRING_id, algorithm = "fastgreedy")
