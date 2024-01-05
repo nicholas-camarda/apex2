@@ -20,8 +20,8 @@ The repository includes several custom R functions to aid in data analysis and v
 
 ### Visualization Functions
 
-- `plot_fc`: For generating waterfall plots, showcasing gene expression data.
-- `plot_volcano`: For creating volcano plots, highlighting significant gene expressions.
+- `plot_fc`: For generating waterfall plots, showcasing protein expression data.
+- `plot_volcano`: For creating volcano plots, highlighting significant protein expressions.
 
 ### Data Analysis Functions
 
