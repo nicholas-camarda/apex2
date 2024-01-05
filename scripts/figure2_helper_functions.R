@@ -1,3 +1,14 @@
+#' Generates combined Fisher p-values for a dataset.
+#'
+#' This function computes combined Fisher p-values for each unique 'Accession' in the dataset.
+#' It handles two-sidedness and includes data adjustments using the 'metap' package.
+#'
+#' @param data The dataset for which combined Fisher p-values are to be calculated.
+#' @param verbose A logical indicating whether to print additional messages (default is FALSE).
+#' @return A dataframe with combined Fisher p-values and adjusted values.
+#' @examples
+#' data <- read.csv("path/to/data.csv")
+#' generate_cmbd_fisher_pval_data(data)
 generate_cmbd_fisher_pval_data <- function(data, verbose = FALSE) {
     input_to_stat <- data %>%
         dplyr::select(-chr_gs, -adjusted_p_val, -reg_fc) %>%
@@ -11,6 +22,7 @@ generate_cmbd_fisher_pval_data <- function(data, verbose = FALSE) {
         filter(!is.na(p_val))
     # nest(data = c(owner, log2_fc, p_val, tx, timing, two_sidedness, toinvert))
 
+    # this operation is always performed on unadjusted p-values
     onesided_fisher <- two2one(p = input_to_stat$p_val, two = input_to_stat$two_sidedness, invert = input_to_stat$toinvert)
     if (verbose) {
         message("Removing NA fisher p-vals\n(i.e. n < 2 or any NA p-values used to construct the combined p-value)")
@@ -43,6 +55,15 @@ generate_cmbd_fisher_pval_data <- function(data, verbose = FALSE) {
     return(fisher_df)
 }
 
+#' Counts the number of unique 'owners' for each Accession in the dataset.
+#'
+#' This function counts the occurrences of each unique Accession across different 'owners' in the dataset.
+#'
+#' @param sig_data The dataset containing Accession and owner columns.
+#' @return A dataframe with each Accession, the number of owners, and a concatenated string of owners.
+#' @examples
+#' sig_data <- read.csv("significant_data.csv")
+#' accession_counts <- count_owners(sig_data)
 count_owners <- function(sig_data) {
     count_accessions <- sig_data %>%
         distinct(Accession, owner) %>%
@@ -57,6 +78,20 @@ count_owners <- function(sig_data) {
 }
 
 
+#' Creates dataframes for significant findings based on statistical values.
+#'
+#' This function processes two datasets to flag significant findings based on a specified statistical value
+#' (e.g., q-value or p-value) and its cutoff. It returns dataframes indicating significant findings.
+#'
+#' @param data1 First dataset for analysis.
+#' @param data2 Second dataset for analysis.
+#' @param my_stat_value_type Type of statistical value used for significance ('q_value' or 'p_value').
+#' @param my_stat_cutoff Cutoff value for determining significance.
+#' @return A list of two dataframes with significant findings and the statistical cutoff used.
+#' @examples
+#' data1 <- read.csv("dataset1.csv")
+#' data2 <- read.csv("dataset2.csv")
+#' sig_dfs <- make_sig_dfs(data1, data2, "q_value", 0.05)
 make_sig_dfs <- function(data1, data2, my_stat_value_type, my_stat_cutoff = NA) {
     if (my_stat_value_type == "q_value") {
         which_p <- sym("adjusted_cmbd_fisher_p_val")
@@ -96,7 +131,23 @@ make_sig_dfs <- function(data1, data2, my_stat_value_type, my_stat_cutoff = NA) 
     return(list(sig_fisher_df, sig_fisher_no_raja_df, stat_cutoff))
 }
 
-
+#' Creates a tribble for naming waterfall plots.
+#'
+#' This function prepares a tibble (tribble) with configurations for generating waterfall plots.
+#' It includes specific settings for different subsets of the data, such as full dataset or conserved hits,
+#' and differentiates between Accession and gene_symbol as grouping variables.
+#'
+#' @param data The primary dataset used for waterfall plotting.
+#' @param data2 An alternative dataset used for specific waterfall plots.
+#' @param my_stat_value_type The statistical value type ('p_value' or 'q_value') used in the plots.
+#' @param num_full_set The number of full datasets to consider for plotting (default is 2).
+#' @param num_conserved The number for conserved datasets to consider (default is 4).
+#' @param helper_title An additional title to add to the plot titles (default is an empty string).
+#' @return A tribble with configurations for different waterfall plots.
+#' @examples
+#' data <- read.csv("path/to/data.csv")
+#' data2 <- read.csv("path/to/data2.csv")
+#' tribble_waterfall <- make_naming_tribble_waterfall(data, data2, "q_value")
 make_naming_tribble_waterfall <- function(data, data2, my_stat_value_type, num_full_set = 2, num_conserved = 4, helper_title = "") {
     naming_tribble <- tribble(
         ~data, ~found_in, ~gvar, ~title, ~path,
@@ -110,6 +161,23 @@ make_naming_tribble_waterfall <- function(data, data2, my_stat_value_type, num_f
     return(naming_tribble)
 }
 
+#' Creates a tribble for naming volcano plots.
+#'
+#' This function generates a tibble (tribble) with configurations for creating volcano plots.
+#' It sets up parameters for different data subsets and grouping variables, allowing for flexible
+#' and targeted volcano plot generation.
+#'
+#' @param data1 The first dataset for volcano plot generation.
+#' @param data2 The second dataset for specific volcano plot settings.
+#' @param my_stat_value_type The statistical value type ('p_value' or 'q_value') used in the plots.
+#' @param num_full_set The number of full datasets to include (default is 2).
+#' @param num_conserved The number of conserved datasets to include (default is 4).
+#' @param helper_title Additional title text for the plots (default is an empty string).
+#' @return A tribble with configurations for different volcano plots.
+#' @examples
+#' data1 <- read.csv("path/to/data1.csv")
+#' data2 <- read.csv("path/to/data2.csv")
+#' tribble_volcano <- make_naming_tribble_volcano(data1, data2, "q_value")
 make_naming_tribble_volcano <- function(data1, data2, my_stat_value_type, num_full_set = 2, num_conserved = 4, helper_title = "") {
     naming_tribble <- tribble(
         ~data, ~found_in, ~gvar, ~title, ~path,
@@ -124,8 +192,24 @@ make_naming_tribble_volcano <- function(data1, data2, my_stat_value_type, num_fu
 }
 
 
-#' @note plotting watefall
+#' Creates and returns a waterfall plot for fold change analysis.
+#'
+#' This function generates a waterfall plot based on the fold change and statistical significance of
+#' each gene or Accession in the provided dataset.
+#'
+#' @param df The dataset for plotting.
+#' @param grouping_variable The variable to group data by (default is "Accession").
+#' @param fc_cutoff Fold change cutoff for significance.
+#' @param stat_cutoff_val Statistical value cutoff for significance.
+#' @param my_stat_value_type Type of statistical value ('q_value' or 'p_value').
+#' @param title_ Title of the plot.
+#' @param found_in_title Part of the caption indicating dataset inclusion criteria.
+#' @return A ggplot object representing the waterfall plot.
+#' @examples
+#' df <- read.csv("gene_data.csv")
+#' waterfall_plot <- plot_fc(df)
 plot_fc <- function(df, grouping_variable = "Accession", fc_cutoff = 2, stat_cutoff_val = 0.001, my_stat_value_type = "q_value", title_ = "Waterfall plot", found_in_title = ">= 2") {
+    # DEBUG
     # i = 1; df = waterfall_plot_name_lst$data[[i]][[1]];grouping_variable = waterfall_plot_name_lst$gvar[[i]]; stat_cutoff_val = stat_cutoff; title_ = waterfall_plot_name_lst$title[[i]]; fc_cutoff = my_fc_cutoff
     grouping_var_sym <- sym(grouping_variable)
 
@@ -221,8 +305,24 @@ plot_fc <- function(df, grouping_variable = "Accession", fc_cutoff = 2, stat_cut
     return(list(wf_plot_with_kruse, num_analytes))
 }
 
-#' @note make volcano plots
+#' Generates a volcano plot for the given dataset.
+#'
+#' This function creates a volcano plot based on log fold change and negative log10 statistical values.
+#' Significant points are highlighted and labeled.
+#'
+#' @param df The dataset for the volcano plot.
+#' @param stat_cutoff_val Statistical cutoff value for significance.
+#' @param label_variable The variable used for labeling significant points.
+#' @param my_stat_value_type Type of statistical value ('q_value' or 'p_value').
+#' @param fc_thresh Fold change threshold for significance.
+#' @param found_in_title Part of the caption indicating dataset inclusion criteria.
+#' @param title_ Title of the volcano plot.
+#' @return A ggplot object representing the volcano plot.
+#' @examples
+#' df <- read.csv("gene_data.csv")
+#' volcano_plot <- plot_volcano(df, 0.001, "Accession", "q_value", 2)
 plot_volcano <- function(df, stat_cutoff_val = 0.001, label_variable = "Accession", my_stat_value_type = "q_value", fc_thresh = 2, found_in_title = "num_ds >= 2", title_ = "Volcano plot") {
+    # DEBUG
     # i = 6; df = volcano_plot_name_lst$data[[i]][[1]];label_variable = volcano_plot_name_lst$gvar[[i]];fc_thresh = my_fc_cutoff;stat_cutoff_val = stat_cutoff;my_stat_value_type = stat_value_type;title_ = volcano_plot_name_lst$title[[i]];found_in_title = volcano_plot_name_lst$found_in[[i]]
 
     label_var_sym <- sym(label_variable)
@@ -301,6 +401,16 @@ plot_volcano <- function(df, stat_cutoff_val = 0.001, label_variable = "Accessio
     return(list(volcano_plot, num_analytes))
 }
 
+#' Adds a specified string to a filename, maintaining the file extension.
+#'
+#' This function modifies a given filename by inserting an additional string before the file extension.
+#'
+#' @param filename The original filename.
+#' @param string_to_add The string to be added to the filename.
+#' @return A new filename with the added string.
+#' @examples
+#' filename <- "data_analysis.csv"
+#' new_filename <- add_string_to_filename(filename, "updated")
 add_string_to_filename <- function(filename, string_to_add) {
     # Usage example:
     # add_string_to_filename("myfile.txt", "_new")
@@ -320,12 +430,33 @@ add_string_to_filename <- function(filename, string_to_add) {
     return(new_filename)
 }
 
+#' Adds a specified string to a filename, maintaining the file extension, for less complicated paths.
+#' Less functionality, but simpler.
+#'
+#' This function modifies a given filename by inserting an additional string before the file extension.
+#'
+#' @param filename The original filename.
+#' @param string_to_add The string to be added to the filename.
+#' @return A new filename with the added string.
+#' @examples
+#' filename <- "data_analysis.csv"
+#' new_filename <- add_string_to_filename(filename, "updated")
 add_string_to_filename_basic <- function(filename, string_to_add, file_ext = "png") {
     new_str <- str_split(filename, qq("\\.@{file_ext}"), simplify = TRUE)[, 1]
     new_filename <- paste0(new_str, "-", string_to_add, ".", file_ext)
 }
 
-convert_to_filename_friendly <- function(input_string) {
+
+#' Converts a string to a filename-friendly format.
+#'
+#' This function transforms an input string to a lowercase, underscore-separated format,
+#' suitable for filenames.
+#'
+#' @param input_string The string to be converted.
+#' @return A filename-friendly version of the input string.
+#' @examples
+#' friendly_name <- convert_to_filename_friendly("Example String")
+onvert_to_filename_friendly <- function(input_string) {
     # Usage example:
     # convert_to_filename_friendly("Include Kruse data")
     # Convert the string to lowercase
@@ -340,6 +471,15 @@ convert_to_filename_friendly <- function(input_string) {
     return(filename_friendly_string)
 }
 
+#' Creates a directory name based on a statistical value.
+#'
+#' This function generates a directory name using a provided statistical value and type.
+#'
+#' @param sval The statistical value.
+#' @param type The type of statistical value ('q' for q-value, etc.).
+#' @return A directory name string.
+#' @examples
+#' dir_name <- make_stat_directory(0.05, "p")
 make_stat_directory <- function(sval, type = "q") {
     sval_str <- as.character(sval)
     sval_str <- gsub("\\.", "-", sval_str)
@@ -350,7 +490,20 @@ make_stat_directory <- function(sval, type = "q") {
 
 
 
-#' @note less restrictions for easy plotting of waterfall plot
+#' Creates a waterfall plot with less restrictive filtering.
+#'
+#' This function facilitates the generation of a waterfall plot for protein expression data.
+#' It applies less stringent criteria for filtering, focusing on fold change and q-value thresholds.
+#' The function also focusing only on data grouping and labeling based on gene symbols, rather than also on Accessions.
+#'
+#' @param dat1 The dataset containing gene expression data.
+#' @param q_val_cutoff The q-value cutoff for significance (default is 0.1).
+#' @param fc_cutoff The fold change cutoff for significance (default is 2).
+#' @param title_ The title for the plot (default is an empty string).
+#' @return A list containing the ggplot object for the waterfall plot and the final dataset used for plotting.
+#' @examples
+#' data <- read.csv("path/to/expression_data.csv")
+#' waterfall_plot <- easy_plot_fc(data, 0.05, 2, "Gene Expression Waterfall Plot")
 easy_plot_fc <- function(dat1, q_val_cutoff = 0.1, fc_cutoff = 2, title_ = "") {
     ds <- dat1 %>%
         group_by(gene_symbol) %>%
@@ -428,7 +581,20 @@ easy_plot_fc <- function(dat1, q_val_cutoff = 0.1, fc_cutoff = 2, title_ = "") {
     return(list(wf_plot, ds_final %>% dplyr::select(-median_log2_fc, -significant_stat_val) %>% rename(neg_log10_q_val = use_neg_log10_stat_val)))
 }
 
-#' @note easy volcano
+#' Generates a volcano plot with simplified filtering.
+#'
+#' This function creates a volcano plot for gene expression data, applying basic criteria
+#' for significance based on fold change and q-value thresholds. It includes labeling and aesthetic adjustments
+#' for better visualization.
+#'
+#' @param df The dataset to be used for the volcano plot.
+#' @param fc_thresh The fold change threshold for significance.
+#' @param q_val_cutoff The q-value cutoff for significance.
+#' @param title_ The title for the plot.
+#' @return A list containing the ggplot object for the volcano plot and the processed dataset.
+#' @examples
+#' data <- read.csv("path/to/expression_data.csv")
+#' volcano_plot <- easy_plot_volcano(data, 2, 0.05, "Gene Expression Volcano Plot")
 easy_plot_volcano <- function(df, fc_thresh, q_val_cutoff, title_) {
     counted_owners_df <- count_owners(df)
 
